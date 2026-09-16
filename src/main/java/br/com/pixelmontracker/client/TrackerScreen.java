@@ -19,6 +19,8 @@ public final class TrackerScreen extends Screen {
     private EditBox filterInput;
     private EditBox minimumLevelInput;
     private EditBox maximumLevelInput;
+    private EditBox workflowGoInput;
+    private EditBox workflowBackInput;
 
     public TrackerScreen() {
         super(Component.literal("Pixelmon Tracker"));
@@ -29,16 +31,18 @@ public final class TrackerScreen extends Screen {
         int left = (width - PANEL_WIDTH) / 2;
         int top = (height - PANEL_HEIGHT) / 2;
 
-        addTab(left + 16, top + 29, 72, "Geral", Page.GENERAL);
-        addTab(left + 94, top + 29, 72, "Filtros", Page.FILTERS);
-        addTab(left + 172, top + 29, 72, "Alvos", Page.TARGETS);
-        addTab(left + 250, top + 29, 72, "Trainer", Page.TRAINER);
+        addTab(left + 16, top + 29, 58, "Geral", Page.GENERAL);
+        addTab(left + 78, top + 29, 58, "Filtros", Page.FILTERS);
+        addTab(left + 140, top + 29, 58, "Alvos", Page.TARGETS);
+        addTab(left + 202, top + 29, 58, "Trainer", Page.TRAINER);
+        addTab(left + 264, top + 29, 60, "Fluxo", Page.WORKFLOW);
 
         switch (page) {
             case GENERAL -> initGeneral(left, top);
             case FILTERS -> initFilters(left, top);
             case TARGETS -> initTargets(left, top);
             case TRAINER -> initTrainer(left, top);
+            case WORKFLOW -> initWorkflow(left, top);
         }
     }
 
@@ -168,6 +172,40 @@ public final class TrackerScreen extends Screen {
         addCloseButton(left, top);
     }
 
+    private void initWorkflow(int left, int top) {
+        workflowGoInput = new EditBox(font, left + 16, top + 78, CONTENT_WIDTH, 20,
+                Component.literal("Comando de ida"));
+        workflowGoInput.setHint(Component.literal("warp healer"));
+        workflowGoInput.setValue(TrackerClient.workflowGoCommand());
+        workflowGoInput.setMaxLength(120);
+        addRenderableWidget(workflowGoInput);
+
+        workflowBackInput = new EditBox(font, left + 16, top + 128, CONTENT_WIDTH, 20,
+                Component.literal("Comando de volta"));
+        workflowBackInput.setHint(Component.literal("back"));
+        workflowBackInput.setValue(TrackerClient.workflowBackCommand());
+        workflowBackInput.setMaxLength(120);
+        addRenderableWidget(workflowBackInput);
+
+        addRenderableWidget(Button.builder(Component.literal("Salvar comandos"), button ->
+                TrackerClient.configureWorkflow(workflowGoInput.getValue(), workflowBackInput.getValue())
+        ).bounds(left + 16, top + 158, CONTENT_WIDTH, 20).build());
+
+        addRenderableWidget(Button.builder(Component.literal("Iniciar cura e voltar"), button -> {
+            TrackerClient.configureWorkflow(workflowGoInput.getValue(), workflowBackInput.getValue());
+            TrackerClient.startWorkflow();
+            onClose();
+        }).bounds(left + 16, top + 190, 150, 24).build());
+
+        Button stop = Button.builder(Component.literal("Parar workflow"), button -> {
+            TrackerClient.stopWorkflow();
+            rebuildWidgets();
+        }).bounds(left + 174, top + 190, 150, 24).build();
+        stop.active = TrackerClient.isWorkflowRunning();
+        addRenderableWidget(stop);
+        addCloseButton(left, top);
+    }
+
     private EditBox levelBox(int x, int y, int width, String hint, String value) {
         EditBox box = new EditBox(font, x, y, width, 20, Component.literal(hint));
         box.setHint(Component.literal(hint));
@@ -242,6 +280,11 @@ public final class TrackerScreen extends Screen {
             graphics.drawString(font, "Clique para fixar; clique novamente para soltar.", left + 16, top + 51, 0xFFA7B0C0, false);
         } else if (page == Page.TRAINER) {
             graphics.drawString(font, "Escolha quem inicia e recebe XP pela troca.", left + 16, top + 51, 0xFFA7B0C0, false);
+        } else if (page == Page.WORKFLOW) {
+            graphics.drawString(font, "Cura automatica: ir, achar healer, curar e voltar.", left + 16, top + 51, 0xFFA7B0C0, false);
+            graphics.drawString(font, "Comando de ida:", left + 16, top + 67, 0xFFA7B0C0, false);
+            graphics.drawString(font, "Comando de volta:", left + 16, top + 117, 0xFFA7B0C0, false);
+            graphics.drawString(font, "Status: " + TrackerClient.workflowStatus(), left + 16, top + 224, 0xFFFFAA00, false);
         }
         super.render(graphics, mouseX, mouseY, partialTick);
 
@@ -283,7 +326,7 @@ public final class TrackerScreen extends Screen {
         return false;
     }
 
-    private enum Page { GENERAL, FILTERS, TARGETS, TRAINER }
+    private enum Page { GENERAL, FILTERS, TARGETS, TRAINER, WORKFLOW }
 
     @FunctionalInterface
     private interface State { boolean get(); }

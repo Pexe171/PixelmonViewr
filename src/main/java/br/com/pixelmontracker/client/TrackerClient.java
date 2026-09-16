@@ -356,6 +356,13 @@ public final class TrackerClient {
     static List<com.pixelmonmod.pixelmon.api.pokemon.Pokemon> trainerParty() { return AutoTrainer.partySnapshot(); }
     static UUID trainingPokemonId() { return AutoTrainer.trainingPokemonId(); }
     static String filterText() { return String.join(",", POKEMON_FILTERS); }
+    static String workflowGoCommand() { return HealerWorkflow.goCommand(); }
+    static String workflowBackCommand() { return HealerWorkflow.backCommand(); }
+    static String workflowStatus() { return HealerWorkflow.status(); }
+    static boolean isWorkflowRunning() { return HealerWorkflow.running(); }
+    static void configureWorkflow(String go, String back) { HealerWorkflow.configure(go, back); }
+    static void startWorkflow() { HealerWorkflow.start(); }
+    static void stopWorkflow() { HealerWorkflow.stop(); }
 
     static void toggleEnabled() {
         enabled = !enabled;
@@ -513,6 +520,7 @@ public final class TrackerClient {
         }
         wasInWorld = true;
         AutoTrainer.tick(minecraft);
+        HealerWorkflow.tick(minecraft);
 
         if (!loggedFirstTick) {
             loggedFirstTick = true;
