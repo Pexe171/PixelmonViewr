@@ -440,7 +440,7 @@ public final class TrackerClient {
             case SPECIAL -> boss || mega || legendary;
         };
         int level = pixelmon.getPokemon().getPokemonLevel();
-        boolean shiny = pixelmon.getPokemon().getPalette().isShiny();
+        boolean shiny = pixelmon.getPokemon().getPalette().is("shiny");
         return kindMatches
                 && (!shinyOnly || shiny)
                 && level >= minimumLevel && level <= maximumLevel
@@ -612,7 +612,7 @@ public final class TrackerClient {
                     boolean pinned = pinnedTarget != null && pinnedTarget.id().equals(targetId);
                     String name = pixelmon.getLocalizedName();
                     String speciesName = normalize(pixelmon.getSpecies().getName());
-                    boolean shiny = pixelmon.getPokemon().getPalette().isShiny();
+                    boolean shiny = pixelmon.getPokemon().getPalette().is("shiny");
                     boolean matchesFilter = POKEMON_FILTERS.isEmpty()
                             || POKEMON_FILTERS.stream().anyMatch(speciesName::contains);
                     boolean matchesSelection = matchesFilter && matchesPokemonCategory(pixelmon);

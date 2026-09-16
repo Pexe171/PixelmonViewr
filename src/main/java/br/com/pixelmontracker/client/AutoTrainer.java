@@ -5,15 +5,12 @@ import com.pixelmonmod.pixelmon.api.battles.AttackCategory;
 import com.pixelmonmod.pixelmon.api.battles.BattleMode;
 import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
 import com.pixelmonmod.pixelmon.api.pokemon.stats.Moveset;
-import com.pixelmonmod.pixelmon.api.util.helpers.NetworkHelper;
 import com.pixelmonmod.pixelmon.battles.attacks.Attack;
 import com.pixelmonmod.pixelmon.client.ClientProxy;
 import com.pixelmonmod.pixelmon.client.gui.battles.ClientBattleManager;
 import com.pixelmonmod.pixelmon.client.gui.battles.PixelmonClientData;
 import com.pixelmonmod.pixelmon.client.keybindings.SendPokemonKey;
 import com.pixelmonmod.pixelmon.client.storage.ClientStorageManager;
-import com.pixelmonmod.pixelmon.comm.packetHandlers.battles.ChooseAttackPacket;
-import com.pixelmonmod.pixelmon.comm.packetHandlers.battles.SwitchPokemonPacket;
 import com.pixelmonmod.pixelmon.entities.pixelmon.PixelmonEntity;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
@@ -312,7 +309,7 @@ final class AutoTrainer {
         }
         Pokemon pokemon = target.getPokemon();
         if (protectRare && (target.isBossPokemon() || target.isLegendary()
-                || pokemon.isMega() || pokemon.getPalette().isShiny())) {
+                || pokemon.isMega() || pokemon.getPalette().is("shiny"))) {
             return false;
         }
         int highestLevel = ClientStorageManager.party().getHighestLevel();
@@ -587,14 +584,18 @@ final class AutoTrainer {
         boolean mega = battle.canMegaEvolve(ours);
         boolean dynamax = !mega && battle.canDynamax(ours);
         boolean[][] targets = battle.targetted == null ? new boolean[0][0] : battle.targetted;
-        NetworkHelper.sendToServer(new ChooseAttackPacket(
+        if (!BattlePacketCompat.attack(
                 ours.pokemonUUID,
                 targets,
                 move,
                 battle.battleControllerIndex,
                 mega,
                 dynamax
-        ));
+        )) {
+            state = "erro de compatibilidade da batalha";
+            setEnabled(false);
+            return;
+        }
         battle.setMode(BattleMode.WAITING);
         lastBattleTurn = battle.battleTurn;
         actionCooldown = 20;
@@ -635,12 +636,39 @@ final class AutoTrainer {
         if (attack.getAttackCategory() == AttackCategory.STATUS || attack.getMove().getBasePower() <= 0) {
             return 8.0 + Math.max(0, attack.getMove().getAccuracy()) / 100.0;
         }
-        double effectiveness = enemy == null ? 1.0
-                : attack.getType().value().getTotalEffectiveness(enemy.getTypes());
+        double effectiveness = enemy == null ? 1.0 : typeEffectiveness(attack, enemy);
         double accuracy = attack.getMove().getAccuracy() <= 0 ? 1.0
                 : attack.getMove().getAccuracy() / 100.0;
-        boolean stab = ours.getTypes().stream().anyMatch(type -> type.equals(attack.getType()));
+        boolean stab = ours.getBaseStats().getTypes().contains(attack.getType());
         return attack.getMove().getBasePower() * effectiveness * accuracy * (stab ? 1.5 : 1.0);
+    }
+
+    private static double typeEffectiveness(Attack attack, PixelmonClientData enemy) {
+        try {
+            Object typeReference = attack.getType();
+            Object type = typeReference;
+            try {
+                type = typeReference.getClass().getMethod("value").invoke(typeReference);
+            } catch (NoSuchMethodException ignored) {
+                // Pixelmon 9.3.0 exposes the enum directly instead of a Holder.
+            }
+            List<?> enemyTypes = enemy.getBaseStats().getTypes();
+            try {
+                Object result = type.getClass().getMethod("getTotalEffectiveness", List.class)
+                        .invoke(type, enemyTypes);
+                return ((Number) result).doubleValue();
+            } catch (NoSuchMethodException newerMethodMissing) {
+                for (var method : type.getClass().getMethods()) {
+                    if (method.getName().equals("getTotalEffectiveness") && method.getParameterCount() == 2) {
+                        Object result = method.invoke(null, enemyTypes, type);
+                        return ((Number) result).doubleValue();
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException error) {
+            PixelmonTracker.LOGGER.debug("Could not calculate cross-version type effectiveness", error);
+        }
+        return 1.0;
     }
 
     private static void selectReplacement(ClientBattleManager battle) {
@@ -651,12 +679,12 @@ final class AutoTrainer {
             state = "sem Pokemon disponivel para troca";
             return;
         }
-        NetworkHelper.sendToServer(new SwitchPokemonPacket(
+        if (!BattlePacketCompat.switchPokemon(
                 replacement.pokemonUUID,
                 battle.battleControllerIndex,
                 currentPokemonId(battle, current),
                 true
-        ));
+        )) return;
         battle.setMode(BattleMode.WAITING);
         actionCooldown = 20;
         lastBattleTurn = Integer.MIN_VALUE;
@@ -680,12 +708,12 @@ final class AutoTrainer {
                     current.getDisplayName().getString());
             return false;
         }
-        NetworkHelper.sendToServer(new SwitchPokemonPacket(
+        if (!BattlePacketCompat.switchPokemon(
                 replacement.pokemonUUID,
                 battle.battleControllerIndex,
                 current.pokemonUUID,
                 false
-        ));
+        )) return false;
         battle.setMode(BattleMode.WAITING);
         trainingSwitchDone = true;
         lastBattleTurn = Integer.MIN_VALUE;
@@ -722,12 +750,12 @@ final class AutoTrainer {
             return false;
         }
 
-        NetworkHelper.sendToServer(new SwitchPokemonPacket(
+        if (!BattlePacketCompat.switchPokemon(
                 replacement.pokemonUUID,
                 battle.battleControllerIndex,
                 current.pokemonUUID,
                 false
-        ));
+        )) return false;
         battle.setMode(BattleMode.WAITING);
         // Pixelmon can keep the same battleTurn while the switch animation is
         // completing. Do not mark it as consumed or the next attack menu is
