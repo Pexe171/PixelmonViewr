@@ -54,6 +54,8 @@ public final class TrackerClient {
     private static final int RADAR_RADIUS = 42;
     private static final double RADAR_RANGE = 128.0;
     private static final int HUD_ROW_HEIGHT = 20;
+    private static final int HUD_ICON_SIZE = 12;
+    private static final int WORLD_ICON_SIZE = 12;
     private static final int PINNED_COLOR = 0xFFFF3BFF;
     private static final ResourceLocation FALLBACK_SPRITE = ResourceLocation.fromNamespaceAndPath(
             "pixelmon", "textures/pokemon/000_missingno/all/base/none/sprite.png");
@@ -609,11 +611,7 @@ public final class TrackerClient {
                             + (shiny ? " [SHINY]" : "")
                             + (mega ? " [MEGA]" : "")
                             + (legendary ? " [LENDARIO]" : "");
-                    int color = shiny ? 0xFF55FF55
-                            : boss ? 0xFF000000 | pixelmon.getBossTier().getColor().getRGB()
-                            : mega ? 0xFFFF55FF
-                            : legendary ? 0xFFFFFF55
-                            : 0xFF55FFFF;
+                    int color = rarityColor(pixelmon, level, shiny, mega, legendary, boss);
                     TARGETS.add(new TrackedTarget(
                             targetId,
                             TrackedTarget.TargetType.POKEMON,
@@ -709,6 +707,18 @@ public final class TrackerClient {
         }
     }
 
+    /** Consistent rarity palette used by the HUD, world labels and radar. */
+    private static int rarityColor(PixelmonEntity pixelmon, int level, boolean shiny,
+                                   boolean mega, boolean legendary, boolean boss) {
+        if (boss) return 0xFF000000 | pixelmon.getBossTier().getColor().getRGB();
+        if (shiny) return 0xFF55FF55;       // shiny: green
+        if (legendary) return 0xFFFFD84D;   // legendary: gold
+        if (mega) return 0xFFFF55FF;        // mega: magenta
+        if (level >= 40) return 0xFFB56CFF; // epic/high level
+        if (level >= 20) return 0xFF5599FF; // rare
+        return 0xFF67E8F9;                  // common
+    }
+
     private static Comparator<TrackedTarget> targetComparator(Vec3 playerPos) {
         return Comparator
                 .comparing((TrackedTarget target) -> pinnedTarget == null || !target.id().equals(pinnedTarget.id()))
@@ -761,8 +771,8 @@ public final class TrackerClient {
             TrackedTarget target = TARGETS.get(i);
             boolean pinned = pinnedTarget != null && target.id().equals(pinnedTarget.id());
             int rowY = y + listY + i * HUD_ROW_HEIGHT;
-            drawTargetIcon(graphics, minecraft, target, x, rowY - 1, 18);
-            graphics.drawString(minecraft.font, lines.get(i), x + 22, rowY + 3,
+            drawTargetIcon(graphics, minecraft, target, x, rowY + 2, HUD_ICON_SIZE);
+            graphics.drawString(minecraft.font, lines.get(i), x + HUD_ICON_SIZE + 6, rowY + 3,
                     pinned ? PINNED_COLOR : target.color(), true);
         }
 
@@ -811,8 +821,8 @@ public final class TrackerClient {
                     + (target.stale() ? " [ULTIMA POSICAO]" : "")
                     + "  " + Math.round(Math.sqrt(distanceSquared)) + "m";
             int textWidth = minecraft.font.width(text);
-            int boxWidth = textWidth + 30;
-            int boxHeight = Math.max(22, minecraft.font.lineHeight + 5);
+            int boxWidth = textWidth + WORLD_ICON_SIZE + 10;
+            int boxHeight = Math.max(18, minecraft.font.lineHeight + 3);
             if (centerX < -boxWidth || centerX > screenWidth + boxWidth
                     || centerY < -boxHeight || centerY > screenHeight + boxHeight) {
                 continue;
@@ -830,8 +840,8 @@ public final class TrackerClient {
             graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xD0101620);
             int markerColor = pinned ? PINNED_COLOR : target.color();
             graphics.fill(x, y, x + (pinned ? 5 : 3), y + boxHeight, markerColor);
-            drawTargetIcon(graphics, minecraft, target, x + 5, y + 2, 18);
-            graphics.drawString(minecraft.font, text, x + 27, y + 4, markerColor, true);
+            drawTargetIcon(graphics, minecraft, target, x + 4, y + 3, WORLD_ICON_SIZE);
+            graphics.drawString(minecraft.font, text, x + WORLD_ICON_SIZE + 8, y + 2, markerColor, true);
             occupied.add(new int[]{x, y, boxWidth, boxHeight});
             rendered++;
         }

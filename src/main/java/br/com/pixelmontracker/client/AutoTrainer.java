@@ -323,12 +323,17 @@ final class AutoTrainer {
         routeRefreshTicks--;
         boolean targetChanged = routeTargetId == null || !routeTargetId.equals(target.getUUID());
         if (targetChanged || route.isEmpty() || routeIndex >= route.size()
-                || routeRefreshTicks <= 0 || stuckTicks > 45) {
+                || routeRefreshTicks <= 0 || stuckTicks > 12
+                || (routeIndex < route.size() && !isNavigable(minecraft, route.get(routeIndex)))) {
             route = findRoute(minecraft, target);
             routeIndex = route.size() > 1 ? 1 : 0;
             routeRefreshTicks = 30;
             routeTargetId = target.getUUID();
+            if (stuckTicks > 12) {
+                PixelmonTracker.LOGGER.info("Auto Trainer detected blocked route; recalculating detour to {}", target.getLocalizedName());
+            }
             PixelmonTracker.LOGGER.info("Auto Trainer route to {}: {} nodes", target.getLocalizedName(), route.size());
+            stuckTicks = 0;
         }
 
         Vec3 destination = target.position().add(0.0, target.getBbHeight() * 0.45, 0.0);
@@ -422,7 +427,8 @@ final class AutoTrainer {
     private static List<BlockPos> routeNeighbours(Minecraft minecraft, BlockPos position) {
         List<BlockPos> neighbours = new ArrayList<>(8);
         boolean swimming = minecraft.level.getFluidState(position).is(FluidTags.WATER);
-        int[][] horizontal = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        int[][] horizontal = {{1, 0}, {-1, 0}, {0, 1}, {0, -1},
+                {1, 1}, {1, -1}, {-1, 1}, {-1, -1}};
         for (int[] direction : horizontal) {
             BlockPos same = position.offset(direction[0], 0, direction[1]);
             if (isNavigable(minecraft, same)) {
