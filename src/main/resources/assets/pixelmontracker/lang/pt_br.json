@@ -1,0 +1,11 @@
+{
+  "key.categories.pixelmontracker": "Pixelmon Tracker",
+  "key.pixelmontracker.menu": "Abrir menu do Tracker",
+  "key.pixelmontracker.toggle": "Ligar/desligar rastreador",
+  "key.pixelmontracker.pokemon": "Mostrar/ocultar Pokemon",
+  "key.pixelmontracker.loot": "Mostrar/ocultar PokeLoot",
+  "key.pixelmontracker.markers": "Mostrar/ocultar marcadores 3D",
+  "key.pixelmontracker.radar": "Mostrar/ocultar radar",
+  "key.pixelmontracker.trails": "Mostrar/ocultar rastros no chao",
+  "key.pixelmontracker.autotrainer": "Ligar/desligar Auto Trainer"
+}

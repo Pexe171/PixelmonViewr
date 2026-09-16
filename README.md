@@ -1,159 +1,104 @@
-# Pixelmon MDK [![Discord](https://img.shields.io/discord/831966641586831431)](https://discord.gg/7vqgtrjDGw) [![GitHub](https://img.shields.io/github/license/Pixelmon-Development/API)](https://www.gnu.org/licenses/lgpl-3.0.html)
+# Pixelmon Tracker
 
-This repository serves as an example for how to create a Pixelmon sidemod
-using Forge 1.20.2 and Pixelmon's 9.X.X API.
+Radar client-side para Minecraft 1.21.1 com Pixelmon 9.3.16 e NeoForge 21.1.200.
 
-If you have any unanswered questions after reading through this README then
-please join my Discord and ask your questions in the [developer channel](https://discord.gg/7vqgtrjDGw).
+O mod mostra Pokemon e PokeLoot que ja foram enviados ao cliente, ou seja, apenas alvos em chunks carregados. Ele nao consulta o servidor e nao encontra conteudo fora da distancia de renderizacao.
 
+## Controles
 
-<!-- TOC -->
-* Pixelmon MDK
-  * [Getting Started](#getting-started)
-    * [Download](#download)
-    * [Clone](#clone)
-    * [Editting the MDK](#editing-the-mdk)
-    * [Testing](#testing)
-    * [Building](#building)
-    * [Updating Pixelmon](#updating-pixelmon)
-  * [FAQ](#faq)
-  * [Creating commands](#commands)
-  * [Listeners](#listeners)
-  * [EnvyAPI](#envyapi)
-<!-- TOC -->
+- `F4`: abrir o menu HUD completo
+- `J`: ligar/desligar o Auto Trainer
+- `K`: mostrar/ocultar rastros no chao
+- `F8`: ligar/desligar o rastreador
+- `F9`: mostrar/ocultar Pokemon
+- `F10`: mostrar/ocultar PokeLoot
+- `F7`: mostrar/ocultar marcadores 3D
+- `F6`: mostrar/ocultar radar circular
 
-## Getting Started
-To get started first clone this repository, or download the contents, to a 
-folder where you want to work. 
+As teclas podem ser alteradas em **Opcoes > Controles > Pixelmon Tracker**.
 
-### Download
-To download the repository click the green "Code" button and then press "Download ZIP".
-As seen below:
+## Filtros de busca
 
-![img.png](img.png)
+- `/ptracker filtro charmander`: mostra e alerta somente Charmander
+- `/ptracker filtro charmander,pikachu,eevee`: procura varios Pokemon
+- `/ptracker lista`: mostra os filtros ativos
+- `/ptracker limpar`: remove o filtro e volta a mostrar todos
+- `/ptracker somente-loot`: oculta Pokemon e deixa somente PokeLoot
+- `/ptracker limpar-pegos`: esquece o historico de PokeLoot coletado
 
-### Cloning
-To clone the repository please follow the instructions [here](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository)
-under "Cloning an Existing Repository".
+Quando um Pokemon filtrado surge nos chunks carregados, o mod toca um alerta e mostra a distancia. O cliente nao recebe dados de chunks distantes ou descarregados, portanto nenhum mod apenas de cliente consegue pesquisar literalmente o mapa inteiro.
 
-### Editing the MDK
-Once you have the decompressed files in your workspace open the folder using IntelliJ.
+## Informacoes exibidas
 
-Make sure to replace all "examplemod" references with the ID of your mod. When creating the mod ID please ensure
-that it is all lower case and only contains alphanumeric characters (otherwise Forge/Minecraft will refuse to load it)
+- Nome e nivel de cada Pokemon
+- Indicacao de boss ou lendario
+- Distancia, direcao relativa e coordenadas
+- Tipo do PokeLoot
+- Marcadores flutuantes visiveis atraves do terreno
+- Radar circular rotativo com alcance de 128 blocos
+- PokéLoot ja coletado e removido automaticamente da lista
+- Rastro ciano ate o Pokemon mais proximo e laranja ate o PokeLoot disponivel mais proximo
 
-You should also change all "your.domain.path" references (and folder names) to the
-packaging of your choice. You should own the domain that you're using and if not
-a common practice is using `me.yournamehere.`.
+## Compilar
 
-#### Testing
-If you want to run your mod in the Minecraft game without having to run a server then follow the steps below.
+Requer JDK 21.
 
-1. Run the ForgeGradle task`genIntelliJRuns` 
-2. Go to the drop down in the top right of IntelliJ
-
-![](https://i.gyazo.com/cef9f240a40c04f0d7ed81e1b66f4a25.png)
-
-3. Click the runClient entry from the drop down
-4. Click the red bug on the right to run the game
-
-Once you've pressed the red button (to the right of the green triangle) it may take a couple
-of minutes before IntellIJ runs the Minecraft client. This is normal as it is downloading the Pixelmon client
-and checking all the files for Mojang mappings so that it can run in your development environment.
-
-After a couple of minutes you should find that your mod has loaded in a Minecraft client. You can now
-enter a single player world and interact with your mod as normal.
-
-
-#### Building
-Once you have edited the above you're ready to go! To then compile your mod
-you should use the `./gradlew build` command which will produce a JAR file
-in the `releases` folder with a version number appended to the end.
-
-Make sure to update your version number for each release you do!
-
-#### Updating Pixelmon
-If the version of Pixelmon available in this is out of date then make sure to follow these steps to update it to the latest.
-
-1. Find your way to the [build.gradle](build.gradle) file
-2. Once in that file look for the "dependencies" section. Which looks like this:
-![](https://i.gyazo.com/8243e355906e817a62347db6ef8ff712.png)
-3. Then replace the "9.2.1" with the current version of the mod (in both places!)
-
-## FAQ
-Frequently Asked Questions
-
-### Why do I want a version number at the end of the JAR name?
-This makes it easier for end users to determine which version of the 
-mod they are currently running. If you're looking for a jar without
-any version numbers look in the `build/libs/` directory
-
-### How do I run in debug
-I usually don't run my mods in the Forge `runClient` so unfortunately I
-am not much help in offering support there. When I am debugging/testing
-I usually add logger lines to determine what variables contain what values,
-or where the logic has reached at that point.
-
-If someone else can explain how to make runClient work with a sidemod I am
-more than happy to put the explanation above.
-
-## Commands
-To create commands using Mojang's Brigadier I recommend you read through
-their documentation [here](https://github.com/Mojang/brigadier/blob/master/README.md)
-
-I have my own API for commands. If you're looking for examples of how to 
-use that I'd suggest looking through the [bingo](https://github.com/EnvyWare/ReforgedBingo) sidemod I have made.
-
-There is now two examples of commands in the MDK 
-- https://github.com/EnvyWare/Pixelmon-MDK/blob/main/src/main/java/your/domain/path/command/ExampleCommand.java
-- https://github.com/EnvyWare/Pixelmon-MDK/blob/main/src/main/java/your/domain/path/command/MoreComplicatedCommand.java
-
-Both of these demonstrate how you can use Brigadier to create server side commands (all commands are server side in 1.20.2).
-The second example shows a more complicated example with arguments and also gives an example of how to use the PokemonSpecification (spec) system.
-
-## Configs
-To create configs I recommend using Pixelmon's internal config API, which is the same as the config API in the EnvyWare API.
-The config API is just a small wrapper around Sponge's Configurate, and allows for very easy config reloading and simple config
-design from a code perspective. 
-You can find an example of how to use it [here](https://github.com/EnvyWare/Pixelmon-MDK/blob/main/src/main/java/your/domain/path/config/ExampleConfig.java)
-
-## Listeners
-In the project you can find an example Pixelmon listener. However, below I'll
-include an example for TCG, Pixelmon and Forge.
-
-Mod class:
-```java
-@SubscribeEvent
-public static void onServerStarting(FMLServerStartingEvent event) {
-    GenericEventListener eventListener = new GenericEventListener();
-    MinecraftForge.EVENT_BUS.register(eventListener);
-    Pixelmon.EVENT_BUS.register(eventListener);
-    TCG.EVENT_BUS.register(eventListener);
-}
+```powershell
+.\gradlew.bat build
 ```
 
-GenericEventListener class:
-```java
-public static class GenericEventListener {
-    
-    @SubscribeEvent
-    public void onPlayerLoggedIn(PlayerLoggedInEvent event) {
-        
-    }
-    
-    @SubscribeEvent
-    public void onTCGEvent(TCGEvent event) {
-        
-    }
-    
-    @SubscribeEvent
-    public void onEggHatch(EggHatchEvent.Pre event) {
-        
-    }
-}
-```
+O JAR final e criado em `build/libs/`.
 
-## EnvyAPI
+## Instalar
 
-If you're looking for an example of how to use my API please look at
-any of the sidemods on this GitHub organization.
+Coloque o JAR do Pixelmon Tracker na pasta `mods` da mesma instancia que contem Pixelmon 9.3.16 e NeoForge 21.1.200. O mod e somente de cliente e nao precisa ser instalado no servidor.
+
+Use apenas em mundo proprio, servidor privado autorizado ou ambiente em que esse tipo de mod seja permitido.
+
+Ao clicar em uma PokeLoot, ela e registrada e removida imediatamente da lista. O historico
+fica salvo por servidor, dimensao e coordenada, inclusive depois de reiniciar o jogo.
+
+No menu `F4`, use **Somente PokeLoot** para ativar o preset. O botao
+**Limpar pegos (N)** mostra quantos registros existem e permite restaurar todos a busca.
+
+## Filtros de categoria
+
+No menu `F4`, clique nos seletores para alternar entre:
+
+- Pokemon: todos, normal, boss, Mega, lendario ou especiais
+- Tier de boss: Common, Uncommon, Rare, Epic, Legendary, Ultimate, Haunted, Drowned ou Equal
+- PokeLoot: Poke Ball, Ultra Ball, Master Ball, Beast Ball, Special ou Grotto
+
+Os filtros de nome e categoria sao combinaveis. Por exemplo, `Charizard` + `Mega`,
+ou categoria `Boss` + tier `Epic`.
+
+## Caca inteligente
+
+- Filtro opcional para mostrar somente Shiny
+- Nivel minimo e maximo de 1 a 100; campo vazio remove o limite correspondente
+- Prioridade: Shiny, Mega, lendario, boss, bonus do tier, nivel e distancia
+- Alerta sonoro exclusivo quando um Shiny aparece nos chunks carregados
+- Pagina **Alvos** no menu `F4` para fixar um resultado
+- O alvo fixado mantem a ultima coordenada quando descarrega e volta ao vivo se reaparecer
+- Enquanto um alvo esta fixado, o rastro segue somente ele
+
+## Auto Trainer
+
+O Auto Trainer fica desligado por padrao. Ao ligar com `J` ou pelo menu `F4`, ele:
+
+- Procura Pokemon selvagem em ate 64 blocos e caminha ate o alvo
+- Evita automaticamente Shiny, Mega, lendario e boss
+- Evita alvos mais de cinco niveis acima do Pokemon mais forte da equipe
+- Inicia a batalha, escolhe golpes por poder, precisao, STAB e efetividade de tipo
+- Usa Mega Evolucao ou Dynamax quando disponivel e troca Pokemon desmaiado
+- Faz troca estrategica com vida baixa ou quando outro Pokemon tem vantagem ofensiva muito maior
+- A aba **Trainer** permite escolher o Pokemon fraco que deve receber experiencia
+- No treino por troca, o escolhido inicia a batalha e troca no primeiro turno para o melhor reforco saudavel
+- A escolha do reforco considera nivel, vida, golpes e vantagem de tipo, sem voltar ao Pokemon em treinamento enquanto houver outra opcao
+- Para quando a equipe nao possui Pokemon apto ou quando outro menu esta aberto
+
+O movimento possui salto e tentativa lateral simples para obstaculos, mas nao substitui um
+sistema completo de pathfinding; supervisione o personagem perto de penhascos ou areas perigosas.
+O botao **Proteger raros** vem ligado por padrao e pode ser desligado no menu `F4`.
+As decisoes de alvo, golpe, troca e qualquer erro ficam registradas em `logs/latest.log`
+com o prefixo `Auto Trainer`.
