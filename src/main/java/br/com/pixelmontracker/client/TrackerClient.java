@@ -4,6 +4,8 @@ import br.com.pixelmontracker.PixelmonTracker;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.pixelmonmod.pixelmon.blocks.tileentity.PokeChestTileEntity;
 import com.pixelmonmod.pixelmon.blocks.enums.EnumPokeChestType;
@@ -111,6 +113,7 @@ public final class TrackerClient {
     private static final Set<String> POKEMON_FILTERS = new HashSet<>();
     private static final Set<UUID> ALERTED_MATCHES = new HashSet<>();
     private static final Set<UUID> ALERTED_SHINIES = new HashSet<>();
+    private static final Set<String> ALERTED_SPECIAL = new HashSet<>();
     private static final Set<String> CLAIMED_LOOT = new HashSet<>();
     private static PokemonKindFilter pokemonKindFilter = PokemonKindFilter.ALL;
     private static BossTierFilter bossTierFilter = BossTierFilter.ALL;
@@ -175,6 +178,14 @@ public final class TrackerClient {
                         }))
                         .then(Commands.literal("limpar").executes(context -> clearFilters()))
                         .then(Commands.literal("lista").executes(context -> showFilters()))
+                        .then(Commands.literal("hud")
+                                .then(Commands.argument("x", IntegerArgumentType.integer(-2000, 2000))
+                                        .then(Commands.argument("y", IntegerArgumentType.integer(-2000, 2000))
+                                                .then(Commands.argument("escala", DoubleArgumentType.doubleArg(0.5, 2.0))
+                                                        .executes(context -> setHudLayout(
+                                                                IntegerArgumentType.getInteger(context, "x"),
+                                                                IntegerArgumentType.getInteger(context, "y"),
+                                                                DoubleArgumentType.getDouble(context, "escala")))))))
         );
     }
 
@@ -219,6 +230,18 @@ public final class TrackerClient {
     static String maximumLevelText() { return maximumLevel == Integer.MAX_VALUE ? "" : Integer.toString(maximumLevel); }
     static List<TrackedTarget> targetSnapshot() { return List.copyOf(TARGETS); }
     static String pinnedTargetId() { return pinnedTarget == null ? "" : pinnedTarget.id(); }
+
+    private static int hudX = 8;
+    private static int hudY = 8;
+    private static double hudScale = 1.0;
+
+    private static int setHudLayout(int x, int y, double scale) {
+        hudX = x;
+        hudY = y;
+        hudScale = scale;
+        status(Minecraft.getInstance(), "HUD: X=" + x + " Y=" + y + " escala=" + scale);
+        return 1;
+    }
 
     static void cyclePokemonKindFilter() {
         PokemonKindFilter[] values = PokemonKindFilter.values();
@@ -582,11 +605,6 @@ public final class TrackerClient {
                     String name = pixelmon.getLocalizedName();
                     String speciesName = normalize(pixelmon.getSpecies().getName());
                     boolean shiny = pixelmon.getPokemon().getPalette().isShiny();
-                    if (shiny && ALERTED_SHINIES.add(pixelmon.getUUID())) {
-                        double foundDistance = pixelmon.position().distanceTo(playerPos);
-                        status(minecraft, "SHINY ENCONTRADO: " + name + " a " + Math.round(foundDistance) + "m");
-                        minecraft.player.playSound(SoundEvents.TOTEM_USE, 0.85f, 1.15f);
-                    }
                     boolean matchesFilter = POKEMON_FILTERS.isEmpty()
                             || POKEMON_FILTERS.stream().anyMatch(speciesName::contains);
                     boolean matchesSelection = matchesFilter && matchesPokemonCategory(pixelmon);
@@ -606,6 +624,9 @@ public final class TrackerClient {
                     boolean boss = pixelmon.isBossPokemon();
                     boolean mega = isMega(pixelmon);
                     boolean legendary = pixelmon.isLegendary();
+                    playSpecialAlert(minecraft, pixelmon.getUUID().toString(), name,
+                            pixelmon.position().distanceTo(playerPos),
+                            shiny, legendary, mega, boss);
                     String tier = boss ? bossTierId(pixelmon).toUpperCase(Locale.ROOT) : "";
                     String flags = (boss ? " [BOSS " + tier + "]" : "")
                             + (shiny ? " [SHINY]" : "")
@@ -659,6 +680,11 @@ public final class TrackerClient {
                                 continue;
                             }
                             String type = chest.isGrotto() ? "Gruta" : chest.getChestType().toString();
+                            if (ALERTED_SPECIAL.add("loot:" + key)) {
+                                double lootDistance = Vec3.atCenterOf(pos).distanceTo(playerPos);
+                                status(minecraft, "POKELOOT ENCONTRADO: " + type + " a " + Math.round(lootDistance) + "m");
+                                minecraft.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.8f, 0.75f);
+                            }
                             TARGETS.add(new TrackedTarget(
                                     "loot:" + key,
                                     TrackedTarget.TargetType.POKELOOT,
@@ -707,6 +733,20 @@ public final class TrackerClient {
         }
     }
 
+    private static void playSpecialAlert(Minecraft minecraft, String id, String name, double distance,
+                                          boolean shiny, boolean legendary, boolean mega, boolean boss) {
+        String category;
+        float pitch;
+        if (shiny) { category = "SHINY"; pitch = 1.15f; }
+        else if (boss) { category = "BOSS"; pitch = 0.65f; }
+        else if (legendary) { category = "LENDARIO"; pitch = 0.9f; }
+        else if (mega) { category = "MEGA"; pitch = 1.45f; }
+        else return;
+        if (!ALERTED_SPECIAL.add(category + ":" + id)) return;
+        status(minecraft, category + " ENCONTRADO: " + name + " a " + Math.round(distance) + "m");
+        minecraft.player.playSound(SoundEvents.TOTEM_USE, 0.9f, pitch);
+    }
+
     /** Consistent rarity palette used by the HUD, world labels and radar. */
     private static int rarityColor(PixelmonEntity pixelmon, int level, boolean shiny,
                                    boolean mega, boolean legendary, boolean boss) {
@@ -741,8 +781,11 @@ public final class TrackerClient {
             PixelmonTracker.LOGGER.info("Pixelmon Tracker HUD render event received");
         }
 
-        int x = 8;
-        int y = 8;
+        graphics.pose().pushPose();
+        graphics.pose().translate(hudX, hudY, 0.0);
+        graphics.pose().scale((float) hudScale, (float) hudScale, 1.0f);
+        int x = 0;
+        int y = 0;
         int shown = Math.min(MAX_HUD_TARGETS, TARGETS.size());
         List<String> lines = new ArrayList<>(shown);
         String header = "PIXELMON TRACKER  |  " + TARGETS.size() + " alvos" + activeFilterSummary();
@@ -775,6 +818,8 @@ public final class TrackerClient {
             graphics.drawString(minecraft.font, lines.get(i), x + HUD_ICON_SIZE + 6, rowY + 3,
                     pinned ? PINNED_COLOR : target.color(), true);
         }
+
+        graphics.pose().popPose();
 
         if (showRadar) {
             drawRadar(graphics, minecraft);
